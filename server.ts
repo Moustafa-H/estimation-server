@@ -95,7 +95,7 @@ io.on('connection', (socket) => {
         newPlayers.push(players[i].getNickname())
       }
       
-      const newTurn = 0
+      const newTurn = room.getTurn()
       room.setGameStarted(true)
       for (let i = 0; i < len; i++) {
         socket.to(room.getPlayers()[i].getSocketID()).emit('start-game', ({newTurn, newPlayers}))
@@ -114,14 +114,28 @@ io.on('connection', (socket) => {
     const room = rooms.length!==0?rooms.find((room) => room.getName() === roomName):undefined
     if (player !== undefined && room !== undefined && room.getPlayers().includes(player)) {
       if (room.getGameStarted() && !room.getDeckDistributed()) {
-        console.log('helloooo from update-hands')
         room.giveOutHands()
         room.incrementGameNumber()
       }
-      const newHands = modifyHands(player, room)
-      const newScores = room.getScores()
-      const newGameNum = room.getGameNumber()
-      socket.emit('update-hands', ({newHands, newScores, newGameNum}))
+      if (room.getGameNumber() <= 10) {
+        const newHands = modifyHands(player, room)
+        const newScores = room.getScores()
+        const newGameNum = room.getGameNumber()
+        const newPhase = room.getPhase()
+        const newTurn = room.getTurn()
+        const newDashCall = room.getDashCall()
+        socket.emit('update-hands', ({newHands, newScores, newGameNum, newPhase, newTurn, newDashCall}))
+      } else {
+        room.endGame()
+        const newHands = modifyHands(player, room)
+        const newGameStarted = room.getGameStarted()
+        const newGameNumber = room.getGameNumber()
+        const newTurn = room.getTurn()
+        const newPoints = room.getPoints()
+        const newScores = room.getScores()
+        const newPhase = room.getPhase()
+        socket.emit('game-ended', {newHands, newGameStarted, newGameNumber, newTurn, newPoints, newScores, newPhase})
+      }
     }
   })
 
@@ -140,28 +154,96 @@ io.on('connection', (socket) => {
     }
   })
 
-  socket.on('yes-dash', (roomName: string) => {
+  socket.on('get-dash', ({roomName, newDash}) => {
+    const player = players.length!==0?players.find((player) => player.getSocketID() === socket.id):undefined
     const room = rooms.length!==0?rooms.find((room) => room.getName() === roomName):undefined
-    if (room !== undefined)
-      socket.broadcast.emit('yes-dash')
-  })
-  
-  socket.on('no-dash', (roomName: string) => {
-    const room = rooms.length!==0?rooms.find((room) => room.getName() === roomName):undefined
-    if (room !== undefined)
-      socket.broadcast.emit('no-dash')
+    if (player !== undefined && room !== undefined && room.getPlayers().includes(player)) {
+      if (room.setPlayerDash(newDash, player)) {
+        // restart game
+        let newHands = modifyHands(player, room)
+        const newScores = room.getScores()
+        const newGameNum = room.getGameNumber()
+        const newPhase = room.getPhase()
+        const newTurn = room.getTurn()
+        const newDashCall = room.getDashCall()
+        socket.emit('update-hands', ({newHands, newScores, newGameNum, newPhase, newTurn, newDashCall}))
+        const len = room.getPlayers().length
+        for (let i = 0; i < len; i++) {
+          const nextPlayer = players.length!==0?players.find((player) => player.getSocketID() === room.getPlayers()[i].getSocketID()):undefined
+          if (nextPlayer !== undefined) {
+            newHands = modifyHands(nextPlayer, room)
+            socket.to(room.getPlayers()[i].getSocketID()).emit('update-hands', ({newHands, newScores, newGameNum, newPhase, newTurn, newDashCall}))
+          }
+        }
+      } else {
+        // send dash
+        const newTurn = room.getTurn()
+        const newDashCall = room.getDashCall()
+        const newPhase = room.getPhase()
+        const len = room.getPlayers().length
+        for (let i = 0; i < len; i++) {
+          socket.to(room.getPlayers()[i].getSocketID()).emit('get-dash', ({newTurn, newDashCall, newPhase}))
+        }
+        socket.emit('get-dash', ({newTurn, newDashCall, newPhase}))
+      }
+    }
   })
 
   socket.on('yes-call', ({roomName, sentSuit, sentPoints}) => {
+    const player = players.length!==0?players.find((player) => player.getSocketID() === socket.id):undefined
     const room = rooms.length!==0?rooms.find((room) => room.getName() === roomName):undefined
-    if (room !== undefined)
-      socket.broadcast.emit('yes-call', {sentSuit, sentPoints})
+    if (player !== undefined && room !== undefined && room.getPlayers().includes(player)) {
+      room.setPlayerCall(sentSuit, sentPoints)
+      const newTurn = room.getTurn()
+      const newPhase = room.getPhase()
+      const newCaller = room.getCaller()
+      const newExpectedPoints = room.getExpectedPoints()
+      const newWithCall = room.getWithCall()
+      const newSuperCall = room.getSuperCall()
+      const newRiskPlayer = room.getRiskPlayer()
+      const newMinPoints = room.getMinPoints()
+      const newMaxPoints = room.getMaxPoints()
+      const newNaPoints = room.getNaPoints()
+      const newDoubleGame = room.getDoubleGame()
+      const len = room.getPlayers().length
+      for (let i = 0; i < len; i++) {
+        socket.to(room.getPlayers()[i].getSocketID()).emit('yes-call', ({sentSuit, sentPoints, newTurn, newPhase, newCaller, newExpectedPoints, newWithCall, newSuperCall, newRiskPlayer, newMinPoints, newMaxPoints, newNaPoints, newDoubleGame}))
+      }
+      socket.emit('yes-call', ({sentSuit, sentPoints, newTurn, newPhase, newCaller, newExpectedPoints, newWithCall, newSuperCall, newRiskPlayer, newMinPoints, newMaxPoints, newNaPoints, newDoubleGame}))
+    }
   })
 
   socket.on('skip-call', (roomName: string) => {
+    const player = players.length!==0?players.find((player) => player.getSocketID() === socket.id):undefined
     const room = rooms.length!==0?rooms.find((room) => room.getName() === roomName):undefined
-    if (room !== undefined)
-      socket.broadcast.emit('skip-call')
+    if (player !== undefined && room !== undefined && room.getPlayers().includes(player)) {
+      if (room.setPlayerSkip(player)) {
+        // restart game
+        let newHands = modifyHands(player, room)
+        const newScores = room.getScores()
+        const newGameNum = room.getGameNumber()
+        const newPhase = room.getPhase()
+        const newTurn = room.getTurn()
+        const newDashCall = room.getDashCall()
+        socket.emit('update-hands', ({newHands, newScores, newGameNum, newPhase, newTurn, newDashCall}))
+        const len = room.getPlayers().length
+        for (let i = 0; i < len; i++) {
+          const nextPlayer = players.length!==0?players.find((player) => player.getSocketID() === room.getPlayers()[i].getSocketID()):undefined
+          if (nextPlayer !== undefined) {
+            newHands = modifyHands(nextPlayer, room)
+            socket.to(room.getPlayers()[i].getSocketID()).emit('update-hands', ({newHands, newScores, newGameNum, newPhase, newTurn, newDashCall}))
+          }
+        }
+      } else {
+        const newTurn = room.getTurn()
+        const newPhase = room.getPhase()
+        const len = room.getPlayers().length
+        for (let i = 0; i < len; i++) {
+          socket.to(room.getPlayers()[i].getSocketID()).emit('skip-call', ({newTurn, newPhase}))
+        }
+        socket.emit('skip-call', ({newTurn, newPhase}))
+      }
+    }
   })
 
   socket.on('evaluate-field', (roomName) => {
