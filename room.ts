@@ -254,7 +254,7 @@ export class Room {
                     this.minPoints = 0
                     this.maxPoints = this.expectedPoints[this.caller]
                 }
-                this.turn = this.caller
+                // this.turn = this.caller
                 do {
                     this.rotateTurn()
                 } while (this.dashCall[this.turn] || this.withCall[this.turn])
@@ -317,6 +317,8 @@ export class Room {
             this.fieldEvaluated = true
             this.field = []
             this.roundNumber++
+        } else {
+            this.fieldEvaluated = false
         }
     }
 
@@ -326,10 +328,101 @@ export class Room {
 
     getRoundResults(): [number, string[], number[]] {
         if (this.roundNumber > 13) {
-            this.deckDistributed = false
-            this.roundNumber = 1
+            this.calculateScores()
         }
         return [this.turn, this.field, this.points]
+    }
+
+    calculateScores() {
+        // check for only win and only loss (-1 for no one)
+        let onlyWin = -1
+        let onlyLoss = -1
+        let countWins = 0
+        let countLosses = 0
+
+        for (let i = 0; i < 4; i++) {
+            if (this.points[i] === this.expectedPoints[i]) {
+                countWins++
+                if (countWins >= 2) {
+                    onlyWin = -1
+                } else if (countWins === 1) {
+                    onlyWin = i
+                }
+            } else {
+                countLosses++
+                if (countLosses >= 2) {
+                    onlyLoss = -1
+                } else if (countLosses === 1) {
+                    onlyLoss = i
+                }
+            }
+        }
+        
+        // set scores
+        if (countWins === 0)
+            this.doubleGame = true
+        else {
+            for (let i = 0; i < 4; i++) {
+                let playerScore = 0
+                
+                if (this.points[i] === this.expectedPoints[i]) {
+                    if (this.superCall && i === this.caller) {
+                            playerScore += this.points[i] ** 2
+                    } else if (this.dashCall[i]) {
+                            playerScore += 30
+                    } else {
+                        playerScore += this.points[i] + 10
+                        if (i === this.caller)
+                            playerScore += 10
+                        if (this.withCall[i])
+                            playerScore += 10
+                        if (i === this.riskPlayer)
+                            playerScore += 10
+                        if (i === onlyWin)
+                            playerScore += 10
+                    }
+                } else {
+                    if (this.superCall && i === this.caller) {
+                    playerScore -= this.expectedPoints[i] ** 2
+                    } else if (this.dashCall[i]) {
+                    playerScore -= 30
+                    } else {
+                    playerScore -= Math.abs(this.points[i] - this.expectedPoints[i])
+                    if (i === this.caller)
+                        playerScore -= 10
+                    if (this.withCall[i])
+                        playerScore -= 10
+                    if (i === this.riskPlayer)
+                        playerScore -= 10
+                    if (i === onlyLoss)
+                        playerScore -= 10
+                    }
+                }
+
+                if (this.doubleGame)
+                    playerScore *= 2
+                this.scores[i] += playerScore
+            }
+            
+            this.doubleGame = false
+        }
+
+        this.deckDistributed = false
+        this.roundNumber = 1
+        this.phase = 0
+        this.points = [0, 0, 0, 0]
+        this.expectedPoints = [-1, -1, -1, -1]
+        this.dashCall = [null, null, null, null]
+        this.caller = -1
+        this.superCall = false
+        this.withCall = [false, false, false, false]
+        this.riskPlayer = -1
+        this.minPoints = 4
+        this.maxPoints = 13
+        this.naPoints = 14
+        this.field = []
+        this.turn = 0
+        this.masterSuit = 4
     }
 
     restartGame() {

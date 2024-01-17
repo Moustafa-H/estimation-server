@@ -124,7 +124,8 @@ io.on('connection', (socket) => {
         const newPhase = room.getPhase()
         const newTurn = room.getTurn()
         const newDashCall = room.getDashCall()
-        socket.emit('update-hands', ({newHands, newScores, newGameNum, newPhase, newTurn, newDashCall}))
+        const newDoubleGame = room.getDoubleGame()
+        socket.emit('update-hands', ({newHands, newScores, newGameNum, newPhase, newTurn, newDashCall, newDoubleGame}))
       } else {
         room.endGame()
         const newHands = modifyHands(player, room)
@@ -260,9 +261,17 @@ io.on('connection', (socket) => {
       }
     }
   })
+
+  socket.on('get-scores', (roomName: string) => {
+    const player = players.length!==0?players.find((player) => player.getSocketID() === socket.id):undefined
+    const room = rooms.length!==0?rooms.find((room) => room.getName() === roomName):undefined
+    if (player !== undefined && room !== undefined && room.getPlayers().includes(player)) {
+      socket.emit('get-scores', (room.getScores()))
+    }
+  })
 })
 
-server.listen(3001, () => {
+server.listen(3002, () => {
   console.log('Server listening on port 3001')
 })
 
@@ -273,6 +282,21 @@ const removePlayerFromRoom = (socket: Socket) => {
         if (rooms[i].getPlayers()[j].getSocketID() === socket.id) {
           rooms[i].removePlayer(socket.id)
           console.log('player', socket.id, 'left room', rooms[i].getName(), ', updated rooms:', rooms)
+          if (rooms[i].getGameStarted()) {
+            rooms[i].endGame()
+            const newHands = modifyHands(rooms[i].getPlayers()[j], rooms[i])
+            const newGameStarted = rooms[i].getGameStarted()
+            const newGameNumber = rooms[i].getGameNumber()
+            const newTurn = rooms[i].getTurn()
+            const newPoints = rooms[i].getPoints()
+            const newScores = rooms[i].getScores()
+            const newPhase = rooms[i].getPhase()
+            
+            const len = rooms[i].getPlayers().length
+            for (let k = 0; k < len; k++) {
+              socket.to(rooms[i].getPlayers()[k].getSocketID()).emit('game-ended', {newHands, newGameStarted, newGameNumber, newTurn, newPoints, newScores, newPhase})
+            }
+          }
         }
       }
     
