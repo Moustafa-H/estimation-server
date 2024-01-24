@@ -117,7 +117,7 @@ io.on('connection', (socket) => {
         room.giveOutHands()
         room.incrementGameNumber()
       }
-      if (room.getGameNumber() <= 10) {
+      if (room.getGameNumber() <= 8) {
         const newHands = modifyHands(player, room)
         const newScores = room.getScores()
         const newGameNum = room.getGameNumber()
@@ -147,11 +147,12 @@ io.on('connection', (socket) => {
       room.rotateTurn()
       room.addCardToField(card)
       const newTurn = room.getTurn()
+      const newField = room.getField()
       const len = room.getPlayers().length
       for (let i = 0; i < len; i++) {
-        socket.to(room.getPlayers()[i].getSocketID()).emit('play-card', ({card, newTurn}))
+        socket.to(room.getPlayers()[i].getSocketID()).emit('play-card', ({card, newTurn, newField}))
       }
-      socket.emit('play-card', ({card, newTurn}))
+      socket.emit('play-card', ({card, newTurn, newField}))
     }
   })
 
@@ -271,7 +272,7 @@ io.on('connection', (socket) => {
   })
 })
 
-server.listen(3002, () => {
+server.listen(3001, () => {
   console.log('Server listening on port 3001')
 })
 

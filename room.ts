@@ -72,6 +72,10 @@ export class Room {
     getDeckDistributed(): boolean {
         return this.deckDistributed
     }
+    
+    getField(): string[] {
+        return this.field
+    }
 
     getFieldLength(): number {
         return this.field.length
@@ -220,7 +224,7 @@ export class Room {
             if (this.caller!==-1 && this.caller!==this.turn && sentSuit===this.masterSuit && sentPoints===this.expectedPoints[this.caller]) {
                 
                 this.withCall[this.turn] = true
-                this.expectedPoints[this.turn] = sentPoints
+                // this.expectedPoints[this.turn] = sentPoints
             
             } else {
                 
@@ -237,6 +241,10 @@ export class Room {
                 
                 // set the new caller and points
                 this.expectedPoints[this.turn] = sentPoints
+                for (let i = 0; i < 4; i++){
+                    if (this.withCall[i])
+                        this.expectedPoints[i] = sentPoints
+                }
                 this.masterSuit = sentSuit
                 this.minPoints = sentPoints
                 this.caller = this.turn
@@ -254,10 +262,10 @@ export class Room {
                     this.minPoints = 0
                     this.maxPoints = this.expectedPoints[this.caller]
                 }
-                // this.turn = this.caller
                 do {
                     this.rotateTurn()
-                } while (this.dashCall[this.turn] || this.withCall[this.turn])
+                }
+                while (this.dashCall[this.turn] || this.withCall[this.turn])
             } else {
                 do {
                     this.rotateTurn()
@@ -315,7 +323,7 @@ export class Room {
             [this.turn, this.hands] = evaluateField(this.field, this.masterSuit, this.hands, playerNicknames)
             this.points[this.turn] += 1
             this.fieldEvaluated = true
-            this.field = []
+            // this.field = []
             this.roundNumber++
         } else {
             this.fieldEvaluated = false
@@ -330,6 +338,7 @@ export class Room {
         if (this.roundNumber > 13) {
             this.calculateScores()
         }
+        this.field = []
         return [this.turn, this.field, this.points]
     }
 
@@ -407,6 +416,15 @@ export class Room {
             this.doubleGame = false
         }
 
+        if (this.gameNumber === 1 || this.gameNumber === 5)
+            this.turn = 1
+        else if (this.gameNumber === 2 || this.gameNumber === 6)
+            this.turn = 2
+        else if (this.gameNumber === 3 || this.gameNumber === 7)
+            this.turn = 3
+        else if (this.gameNumber === 4 || this.gameNumber === 8)
+            this.turn = 0
+        
         this.deckDistributed = false
         this.roundNumber = 1
         this.phase = 0
@@ -421,7 +439,6 @@ export class Room {
         this.maxPoints = 13
         this.naPoints = 14
         this.field = []
-        this.turn = 0
         this.masterSuit = 4
     }
 
