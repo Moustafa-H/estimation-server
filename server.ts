@@ -143,7 +143,7 @@ io.on('connection', (socket) => {
   socket.on('play-card', ({roomName, card}) => {
     const player = players.length!==0?players.find((player) => player.getSocketID() === socket.id):undefined
     const room = rooms.length!==0?rooms.find((room) => room.getName() === roomName):undefined
-    if (player !== undefined && room !== undefined && room.getPlayers().includes(player)) {
+    if (player !== undefined && room !== undefined && room.getPlayers().includes(player) && !room.getField().includes(card)) {
       room.rotateTurn()
       room.addCardToField(card)
       const newTurn = room.getTurn()
