@@ -434,6 +434,7 @@ export class Room {
         this.caller = -1
         this.superCall = false
         this.withCall = [false, false, false, false]
+        this.skipCall = [false, false, false, false]
         this.riskPlayer = -1
         this.minPoints = 4
         this.maxPoints = 13
@@ -459,6 +460,11 @@ export class Room {
         this.maxPoints = 13
         this.naPoints = 14
         this.doubleGame = true
+        this.roundNumber = 1
+        this.field = []
+        this.fieldEvaluated = false
+        this.points = [0, 0, 0, 0]
+        this.skipCall = [false, false, false, false]
         this.giveOutHands()
     }
 
@@ -480,6 +486,7 @@ export class Room {
         this.caller = -1
         this.superCall = false
         this.withCall = [false, false, false, false]
+        this.skipCall = [false, false, false, false]
         this.riskPlayer = -1
         this.minPoints = 4
         this.maxPoints = 13
