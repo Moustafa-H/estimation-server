@@ -473,7 +473,7 @@ export class Room {
         this.gameStarted = false
         this.gameNumber = 0
         this.roundNumber = 1
-        this.turn = 0
+        this.turn = -1
         this.deckDistributed = false
         this.field = []
         this.fieldEvaluated = false
